@@ -1,0 +1,70 @@
+import pandas as pd
+from lasagne import layers
+from lasagne.nonlinearities import  softmax, rectify
+from lasagne.updates import nesterov_momentum
+from nolearn.lasagne import NeuralNet
+from sklearn.cross_validation import StratifiedShuffleSplit, StratifiedKFold
+from sklearn.metrics import roc_curve, auc, roc_auc_score, confusion_matrix
+import numpy as np
+
+def fit_model(train_x, y, test_x):
+    """Feed forward neural network for kaggle digit recognizer competition.
+    Intentionally limit network size and optimization time (by choosing max_epochs = 15) to meet runtime restrictions
+    """
+    print("\n\nRunning Convetional Net.  Optimization progress below\n\n")
+    net1 = NeuralNet(
+        layers=[  #list the layers here
+            ('input', layers.InputLayer),
+            ('hidden1', layers.DenseLayer),
+            ('hidden2', layers.DenseLayer),
+            ('output', layers.DenseLayer),
+            ],
+
+        # layer parameters:
+        input_shape=(None, train_x.shape[1]),
+        hidden1_num_units=40, hidden1_nonlinearity=rectify,  #params of first layer
+        hidden2_num_units=20, hidden2_nonlinearity=rectify,
+        output_nonlinearity=softmax,  # softmax for classification problems
+        output_num_units=2,  # 10 target values
+
+        # optimization method:
+        update=nesterov_momentum,
+        update_learning_rate=0.01,
+        update_momentum=0.7,
+
+        regression=False,
+        max_epochs=1500,  # Intentionally limited for execution speed
+        verbose=1,
+        )
+
+    net1.fit(train_x, y)
+    predictions = net1.predict(test_x)
+    return(predictions)
+
+def write_preds(preds, fname):
+    pd.DataFrame({"ImageId": range(1,len(preds)+1), "Label": preds}).to_csv(fname, index=False, header=True)
+
+    
+# Read data
+train = pd.read_csv('new_train_05_27.csv')
+test=pd.read_csv('new_test_05_27.csv')
+train_y = train['outcome'].values.astype('int32')
+
+train_x = train[['bid_num','auc_num','uniq_device','uniq_country','uniq_ip','uniq_url','mean_auc_bid','std_auc_bid','mean_speed','std_speed','bids_over_auc','bids_over_device','bids_over_country','bids_over_ip','bids_over_url','auc_over_device','auc_over_country','auc_over_ip','auc_over_url','device_over_ip','country_over_ip']]
+train_x = train_x.values
+test_x = test[['bid_num','auc_num','uniq_device','uniq_country','uniq_ip','uniq_url','mean_auc_bid','std_auc_bid','mean_speed','std_speed','bids_over_auc','bids_over_device','bids_over_country','bids_over_ip','bids_over_url','auc_over_device','auc_over_country','auc_over_ip','auc_over_url','device_over_ip','country_over_ip']]
+test_x = test_x.values
+
+#results=[]
+#sss = StratifiedShuffleSplit(train_y, test_size=0.2, random_state=1234)
+#for train_index, validation_index in sss:
+#            x_train_small, y_train_small = train_x.loc[train_index].values, train_y.loc[train_index].values.astype('int32')
+            
+#            x_valid, y_valid = train_x.loc[validation_index].values, train_y.loc[validation_index]
+            # Fit a (non-convolutional) neural network
+#            basic_nn_preds = fit_model(x_train_small, y_train_small, x_valid)
+#            results.append(roc_auc_score(y_valid, basic_nn_preds))
+#print('Cross-validated mean Neural Network score {score}'.format(score=np.mean(results)))
+basic_nn_preds = fit_model(train_x, train_y, test_x)                  
+#write_preds(basic_nn_preds, "basic_nn.csv")
+
